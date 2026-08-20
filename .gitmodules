@@ -1,0 +1,15 @@
+[submodule "zenoh"]
+	path = zenoh
+	url = https://github.com/mp0rta/zenoh.git
+	branch = feat/noq-mpquic-poc
+	shallow = true
+[submodule "noq"]
+	path = noq
+	url = https://github.com/mp0rta/noq.git
+	branch = feat/mpquic-poc
+	shallow = true
+[submodule "zenoh-plugin-ros2dds"]
+	path = zenoh-plugin-ros2dds
+	url = https://github.com/mp0rta/zenoh-plugin-ros2dds.git
+	branch = feat/mpquic-demo
+	shallow = true

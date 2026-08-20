@@ -53,21 +53,17 @@ fork).
 
 ## Running it
 
-Prerequisites: Linux, Docker, Rust, `openssl`, and the sibling fork checkouts
-(this repo expects the workspace layout below; the forks carry the multipath
-backend):
-
-```
-workspace/
-├── zenoh/                  # github.com/mp0rta/zenoh                branch feat/noq-mpquic-poc
-├── noq/                    # github.com/mp0rta/noq                  branch feat/mpquic-poc
-├── zenoh-plugin-ros2dds/   # github.com/mp0rta/zenoh-plugin-ros2dds branch feat/mpquic-demo
-└── ros2-mpquic-demo/       # this repo
-```
+Prerequisites: Linux, Docker, Rust and `openssl`. The multipath forks
+(zenoh @ `feat/noq-mpquic-poc`, noq @ `feat/mpquic-poc`,
+zenoh-plugin-ros2dds @ `feat/mpquic-demo`) are bundled as git submodules,
+so one recursive clone brings everything needed:
 
 ```bash
-# 1. build the bridge against the forks (once)
-( cd ../zenoh-plugin-ros2dds && cargo build -p zenoh-bridge-ros2dds )
+git clone --recursive https://github.com/mp0rta/ros2-mpquic-demo.git
+cd ros2-mpquic-demo
+
+# 1. build the bridge against the bundled forks (once)
+( cd zenoh-plugin-ros2dds && cargo build -p zenoh-bridge-ros2dds )
 
 # 2. build the demo image (once)
 docker build -t mpquic-demo:local .
@@ -76,6 +72,10 @@ docker build -t mpquic-demo:local .
 ./demo.sh              # multipath: the stream survives the outage
 ./demo.sh --single     # baseline: the stream blacks out
 ```
+
+Cloned without `--recursive`? Run `git submodule update --init` first.
+(For fork development, `demo.sh` also accepts the three forks checked out
+as siblings of this repo instead of the submodules.)
 
 `STEADY_SECS` extends the watch time before the failure is injected;
 `VIEW_PORT` changes the browser port. Everything runs inside one privileged
@@ -121,3 +121,5 @@ build the bridge inside a matching container instead.
 - `ros/qoe_monitor.py` — QoE measurement + MJPEG server for the browser
 - `configs/` — zenoh bridge configs (multipath + single-path baseline)
 - `netns.sh`, `gen-certs.sh`, `Dockerfile`, `demo.sh`
+- `zenoh/`, `noq/`, `zenoh-plugin-ros2dds/` — the multipath transport forks
+  (git submodules pinned to the tested commits)

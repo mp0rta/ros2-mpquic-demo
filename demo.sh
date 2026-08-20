@@ -13,17 +13,26 @@
 #      VIEW_PORT (default 8480) host port for the browser stream.
 #
 # Requires: docker, the image (docker build -t mpquic-demo:local .), and the
-# sibling fork checkouts with a debug bridge binary
-# (../zenoh-plugin-ros2dds/target/debug/zenoh-bridge-ros2dds, branch feat/mpquic-demo).
+# bridge binary built from the bundled submodules (see README):
+#   (cd zenoh-plugin-ros2dds && cargo build -p zenoh-bridge-ros2dds)
 set -euo pipefail
 cd "$(dirname "$0")"
-WS="$(cd .. && pwd)"
 
 MODE=multipath
 [ "${1:-}" = "--single" ] && MODE=single
 
+# Two supported layouts: the fork checkouts as submodules inside this repo
+# (preferred; git clone --recursive) or as siblings of this repo.
 BRIDGE=zenoh-plugin-ros2dds/target/debug/zenoh-bridge-ros2dds
-[ -f "$WS/$BRIDGE" ] || { echo "bridge binary not found: $WS/$BRIDGE (build it on branch feat/mpquic-demo)" >&2; exit 1; }
+if [ -f "$BRIDGE" ]; then
+  WS="$PWD"; DEMO_DIR=/ws
+elif [ -f "../$BRIDGE" ]; then
+  WS="$(cd .. && pwd)"; DEMO_DIR="/ws/$(basename "$PWD")"
+else
+  echo "bridge binary not found: ./$BRIDGE or ../$BRIDGE" >&2
+  echo "build it: git submodule update --init && (cd zenoh-plugin-ros2dds && cargo build -p zenoh-bridge-ros2dds)" >&2
+  exit 1
+fi
 command -v openssl >/dev/null || { echo "openssl is required (cert generation)" >&2; exit 1; }
 # (re)generate certs if missing or within a day of expiry
 openssl x509 -in certs/server.pem -noout -checkend 86400 2>/dev/null || ./gen-certs.sh
@@ -32,7 +41,7 @@ mkdir -p "logs/$MODE"
 IMAGE="${MPQUIC_DEMO_IMAGE:-mpquic-demo:local}"
 
 VIEW_PORT="${VIEW_PORT:-8480}"
-docker run --rm --privileged -p 127.0.0.1:"$VIEW_PORT":8080 -v "$WS":/ws -w /ws/ros2-mpquic-demo "$IMAGE" \
+docker run --rm --privileged -p 127.0.0.1:"$VIEW_PORT":8080 -v "$WS":/ws -w "$DEMO_DIR" "$IMAGE" \
   env MODE="$MODE" STEADY_SECS="${STEADY_SECS:-15}" VIEW_PORT="$VIEW_PORT" bash -c '
 set -euo pipefail
 LOG=logs/$MODE   # per-mode dir so a baseline run cannot overwrite multipath evidence
