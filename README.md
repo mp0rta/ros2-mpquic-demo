@@ -99,6 +99,10 @@ build the bridge inside a matching container instead.
 - The detection figure is measured by polling the bridge log every 50 ms,
   so it is an upper bound with ~0.1 s of quantization — hence "~0.3 s".
 
+## License
+
+[Apache-2.0](LICENSE)
+
 ## Repository layout
 
 - `ros/camera_sim.py` — synthetic camera (frame id in `header.frame_id`,
