@@ -1,0 +1,4 @@
+# The image copies nothing from the build context (see Dockerfile). Keep the
+# context empty so the bundled submodules — and their multi-GB target/ dirs
+# once built — are never sent to the docker daemon.
+*
