@@ -24,6 +24,7 @@ MODE=multipath
 
 BRIDGE=zenoh-plugin-ros2dds/target/debug/zenoh-bridge-ros2dds
 [ -f "$WS/$BRIDGE" ] || { echo "bridge binary not found: $WS/$BRIDGE (build it on branch feat/mpquic-demo)" >&2; exit 1; }
+command -v openssl >/dev/null || { echo "openssl is required (cert generation)" >&2; exit 1; }
 # (re)generate certs if missing or within a day of expiry
 openssl x509 -in certs/server.pem -noout -checkend 86400 2>/dev/null || ./gen-certs.sh
 mkdir -p "logs/$MODE"

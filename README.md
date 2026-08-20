@@ -14,9 +14,10 @@ the video freezes for well under a second instead of blacking out:
 | QUIC connections used |  1 (no reconnect) | reconnect after recovery |
 
 (one representative run each; 20 fps synthetic camera, 10 s primary-path
-outage injected mid-stream, Linux netns + netem topology; raw logs and the
-per-frame CSV of each run land in `./logs/<mode>/`, so every number in this
-table can be recomputed from the data)
+outage injected mid-stream, Linux netns + netem topology. Every run writes
+its raw logs and a per-frame CSV to `./logs/<mode>/`, so when you run the
+demo yourself you can recompute every number in this table from your own
+data)
 
 ```
 camera_sim --CycloneDDS-- zenoh-bridge-ros2dds ==MPQUIC (2 paths)== zenoh-bridge-ros2dds --CycloneDDS-- qoe_monitor --> your browser
