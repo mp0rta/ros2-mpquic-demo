@@ -4,10 +4,10 @@
 # and get an automatic QoE summary.
 #
 #   camera_sim --CycloneDDS-- bridge ==MPQUIC(2 paths)== bridge --CycloneDDS-- qoe_monitor --> browser
-#     (netns zc, domain 0)                                  (netns zs, domain 1)     http://localhost:8080
+#     (netns zc, domain 0)                                  (netns zs, domain 1)     http://localhost:$VIEW_PORT
 #
 # Usage:
-#   ./demo.sh            # multipath: failover mid-stream, ~0.3s freeze, no session loss
+#   ./demo.sh            # multipath: failover mid-stream, sub-second freeze, no session loss
 #   ./demo.sh --single   # baseline: same failure without multipath (blackout + reconnect)
 # Env: STEADY_SECS (default 15) time to watch before the failure is injected;
 #      VIEW_PORT (default 8480) host port for the browser stream.
@@ -24,16 +24,17 @@ MODE=multipath
 
 BRIDGE=zenoh-plugin-ros2dds/target/debug/zenoh-bridge-ros2dds
 [ -f "$WS/$BRIDGE" ] || { echo "bridge binary not found: $WS/$BRIDGE (build it on branch feat/mpquic-demo)" >&2; exit 1; }
-[ -f certs/server.pem ] || ./gen-certs.sh
-mkdir -p logs
+# (re)generate certs if missing or within a day of expiry
+openssl x509 -in certs/server.pem -noout -checkend 86400 2>/dev/null || ./gen-certs.sh
+mkdir -p "logs/$MODE"
 
 IMAGE="${MPQUIC_DEMO_IMAGE:-mpquic-demo:local}"
 
 VIEW_PORT="${VIEW_PORT:-8480}"
-docker run --rm --privileged -p "$VIEW_PORT":8080 -v "$WS":/ws -w /ws/ros2-mpquic-demo "$IMAGE" \
+docker run --rm --privileged -p 127.0.0.1:"$VIEW_PORT":8080 -v "$WS":/ws -w /ws/ros2-mpquic-demo "$IMAGE" \
   env MODE="$MODE" STEADY_SECS="${STEADY_SECS:-15}" VIEW_PORT="$VIEW_PORT" bash -c '
 set -euo pipefail
-LOG=logs
+LOG=logs/$MODE   # per-mode dir so a baseline run cannot overwrite multipath evidence
 say() { printf "\n\033[1m== %s ==\033[0m\n" "$*"; }
 now_ms() { date -u +%s%3N; }
 
@@ -132,4 +133,4 @@ else
 fi
 '
 echo ""
-echo "logs in ./logs/ (bridge-camera, bridge-monitor, camera, qoe + qoe.csv)"
+echo "logs in ./logs/$MODE/ (bridge-camera, bridge-monitor, camera, qoe + qoe.csv)"

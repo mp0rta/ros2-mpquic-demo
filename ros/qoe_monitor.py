@@ -7,6 +7,11 @@ header.stamp — valid here because both ends share the host clock), serves
 the live picture as MJPEG over HTTP for a browser, and writes a CSV +
 summary on shutdown.
 
+Loss accounting assumes frame ids arrive in increasing order (holds here:
+one publisher, one ordered transport) and cannot see frames sent after the
+last one received — the demo script stops the camera before the monitor so
+no tail loss is hidden.
+
 Usage: qoe_monitor.py [--csv PATH] [--port 8080]
 """
 import argparse
@@ -139,6 +144,7 @@ def main():
     rclpy.init()
     node = QoeMonitor(args.csv)
     MjpegHandler.monitor = node
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
     httpd = socketserver.ThreadingTCPServer(("0.0.0.0", args.port), MjpegHandler)
     httpd.daemon_threads = True
     threading.Thread(target=httpd.serve_forever, daemon=True).start()

@@ -28,7 +28,8 @@ up() {
 }
 
 netem() {
-  # Path 0: RTT 10ms / 100Mbps, Path 1: RTT 50ms / 30Mbps (spec section 11)
+  # Path 0: RTT 10ms / 100Mbps, Path 1: RTT 50ms / 30Mbps (deliberately unequal
+  # paths: the failover jumps to a visibly slower link and still stays smooth)
   # netem delay is per direction (applied on both egresses): 5ms x2 = RTT 10ms,
   # 25ms x2 = RTT 50ms. Do NOT "fix" these to 10ms/25ms x2 -- that doubles the RTT.
   ip netns exec zc tc qdisc replace dev c0 root netem delay 5ms rate 100mbit

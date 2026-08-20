@@ -8,13 +8,15 @@ the video freezes for well under a second instead of blacking out:
 
 |                       | Multipath QUIC | single path (baseline) |
 |-----------------------|---------------:|-----------------------:|
-| worst video freeze    |     **706 ms** |           **10211 ms** |
-| frames lost           |    **0 / 536** |             203 / 530  |
-| path-failure detection|         271 ms |     n/a (session died) |
+| worst video freeze    |     **518 ms** |           **10711 ms** |
+| frames lost           |    **4 / 676** |             213 / 670  |
+| path-failure detection|         ~0.3 s |     n/a (session died) |
 | QUIC connections used |  1 (no reconnect) | reconnect after recovery |
 
 (one representative run each; 20 fps synthetic camera, 10 s primary-path
-outage injected mid-stream, Linux netns + netem topology)
+outage injected mid-stream, Linux netns + netem topology; raw logs and the
+per-frame CSV of each run land in `./logs/<mode>/`, so every number in this
+table can be recomputed from the data)
 
 ```
 camera_sim --CycloneDDS-- zenoh-bridge-ros2dds ==MPQUIC (2 paths)== zenoh-bridge-ros2dds --CycloneDDS-- qoe_monitor --> your browser
@@ -36,7 +38,7 @@ fork).
   a ROS 2 `CompressedImage` topic across the bridge, viewable live in a
   browser (MJPEG).
 - Mid-stream, the primary network interface is taken down. With multipath the
-  ball stutters for ~0.7 s and keeps bouncing; the baseline freezes for the
+  ball stutters for ~0.5 s and keeps bouncing; the baseline freezes for the
   whole outage and drops every frame in it.
 - A QoE summary (frame loss, latency percentiles, freeze durations, per-frame
   CSV) and the path-event log (detection latency, no-reconnect proof) are
@@ -44,14 +46,15 @@ fork).
 
 ## Running it
 
-Prerequisites: Linux, Docker, Rust, and the sibling fork checkouts (this repo
-expects the workspace layout below; the forks carry the multipath backend):
+Prerequisites: Linux, Docker, Rust, `openssl`, and the sibling fork checkouts
+(this repo expects the workspace layout below; the forks carry the multipath
+backend):
 
 ```
 workspace/
-├── zenoh/                  # branch feat/noq-mpquic-poc
-├── noq/                    # branch feat/mpquic-poc
-├── zenoh-plugin-ros2dds/   # branch feat/mpquic-demo
+├── zenoh/                  # github.com/mp0rta/zenoh                branch feat/noq-mpquic-poc
+├── noq/                    # github.com/mp0rta/noq                  branch feat/mpquic-poc
+├── zenoh-plugin-ros2dds/   # github.com/mp0rta/zenoh-plugin-ros2dds branch feat/mpquic-demo
 └── ros2-mpquic-demo/       # this repo
 ```
 
@@ -70,7 +73,12 @@ docker build -t mpquic-demo:local .
 `STEADY_SECS` extends the watch time before the failure is injected;
 `VIEW_PORT` changes the browser port. Everything runs inside one privileged
 container (network namespaces + veth + netem); nothing touches your host
-network. Logs and the per-frame CSV land in `./logs/`.
+network beyond the browser port on localhost. Logs and the per-frame CSV
+land in `./logs/<mode>/`.
+
+The bridge binary is built on the host and runs inside the container
+(Ubuntu 24.04 base) — if your host's glibc is newer than the container's,
+build the bridge inside a matching container instead.
 
 ## Honesty notes
 
@@ -82,10 +90,13 @@ network. Logs and the per-frame CSV land in `./logs/`.
 - The baseline is genuinely handicapped by having one NIC; that is the point
   of the comparison — multipath turns standby hardware into instant failover
   without any application change.
-- Frame-loss figures depend on QoS: the demo uses best-effort sensor QoS;
-  during the multipath failover the ~0.7 s of frames were still delivered
-  (retransmission drains the stall), while the baseline's 10 s outage
-  dropped them.
+- Frame-loss figures depend on QoS: the demo uses best-effort sensor QoS.
+  During the multipath failover most of the stalled frames were still
+  delivered (retransmission drains the ~0.5 s stall; 4 consecutive frames,
+  0.2 s of video, fell out of the best-effort queue at the failover
+  instant), while the baseline's 10 s outage dropped them all.
+- The detection figure is measured by polling the bridge log every 50 ms,
+  so it is an upper bound with ~0.1 s of quantization — hence "~0.3 s".
 
 ## Repository layout
 

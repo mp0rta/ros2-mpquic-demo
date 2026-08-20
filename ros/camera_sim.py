@@ -12,6 +12,7 @@ import time
 import cv2
 import numpy as np
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import QoSPresetProfiles
 from sensor_msgs.msg import CompressedImage
@@ -61,8 +62,8 @@ def main():
     node = CameraSim()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass  # SIGTERM lands as ExternalShutdownException — a clean exit, not a crash
 
 
 if __name__ == "__main__":
