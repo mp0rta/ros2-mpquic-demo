@@ -4,16 +4,21 @@
 browser, with measured QoE.**
 
 One QUIC connection, two network paths. Pull the primary path mid-stream and
-the video freezes for well under a second instead of blacking out:
+the video stutters for a moment instead of blacking out for the whole outage:
+
+![side-by-side failover comparison](docs/demo.gif)
+
+(two `./demo.sh` runs, captured from the live browser stream and aligned at
+the failure instant — that is why the two wall clocks differ)
 
 |                       | Multipath QUIC | single path (baseline) |
 |-----------------------|---------------:|-----------------------:|
-| worst video freeze    |     **518 ms** |           **10711 ms** |
-| frames lost           |    **4 / 676** |             213 / 670  |
+| worst video freeze    |    **1872 ms** |           **10710 ms** |
+| frames lost           |   **17 / 675** |             213 / 670  |
 | path-failure detection|         ~0.3 s |     n/a (session died) |
 | QUIC connections used |  1 (no reconnect) | reconnect after recovery |
 
-(one representative run each; 20 fps synthetic camera, 10 s primary-path
+(the same two runs the GIF shows; 20 fps synthetic camera, 10 s primary-path
 outage injected mid-stream, Linux netns + netem topology. Every run writes
 its raw logs and a per-frame CSV to `./logs/<mode>/`, so when you run the
 demo yourself you can recompute every number in this table from your own
@@ -39,8 +44,8 @@ fork).
   a ROS 2 `CompressedImage` topic across the bridge, viewable live in a
   browser (MJPEG).
 - Mid-stream, the primary network interface is taken down. With multipath the
-  ball stutters for ~0.5 s and keeps bouncing; the baseline freezes for the
-  whole outage and drops every frame in it.
+  ball stutters for a moment (0.5–1.9 s across our runs) and keeps bouncing;
+  the baseline freezes for the whole outage and drops every frame in it.
 - A QoE summary (frame loss, latency percentiles, freeze durations, per-frame
   CSV) and the path-event log (detection latency, no-reconnect proof) are
   printed automatically.
@@ -93,9 +98,13 @@ build the bridge inside a matching container instead.
   without any application change.
 - Frame-loss figures depend on QoS: the demo uses best-effort sensor QoS.
   During the multipath failover most of the stalled frames were still
-  delivered (retransmission drains the ~0.5 s stall; 4 consecutive frames,
-  0.2 s of video, fell out of the best-effort queue at the failover
-  instant), while the baseline's 10 s outage dropped them all.
+  delivered (retransmission drains the stall; a short consecutive burst —
+  17 of 675 frames in the tabled run — fell out of the best-effort queue at
+  the failover instant), while the baseline's 10 s outage dropped them all.
+- The multipath worst freeze varies run to run: we observed 0.5–1.9 s
+  across repeated runs on one machine, while detection (~0.3 s) and the
+  baseline's ~10.7 s blackout were stable. The table shows one run, not a
+  best case — run it yourself and read your own numbers.
 - The detection figure is measured by polling the bridge log every 50 ms,
   so it is an upper bound with ~0.1 s of quantization — hence "~0.3 s".
 

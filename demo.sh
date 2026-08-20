@@ -7,7 +7,7 @@
 #     (netns zc, domain 0)                                  (netns zs, domain 1)     http://localhost:$VIEW_PORT
 #
 # Usage:
-#   ./demo.sh            # multipath: failover mid-stream, sub-second freeze, no session loss
+#   ./demo.sh            # multipath: failover mid-stream, brief freeze, no session loss
 #   ./demo.sh --single   # baseline: same failure without multipath (blackout + reconnect)
 # Env: STEADY_SECS (default 15) time to watch before the failure is injected;
 #      VIEW_PORT (default 8480) host port for the browser stream.
