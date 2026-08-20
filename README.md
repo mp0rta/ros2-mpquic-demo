@@ -4,7 +4,8 @@
 browser, with measured QoE.**
 
 One QUIC connection, two network paths. Pull the primary path mid-stream and
-the video stutters for a moment instead of blacking out for the whole outage:
+the video stutters for well under a second instead of blacking out for the
+whole outage:
 
 ![side-by-side failover comparison](docs/demo.gif)
 
@@ -13,8 +14,8 @@ the failure instant — that is why the two wall clocks differ)
 
 |                       | Multipath QUIC | single path (baseline) |
 |-----------------------|---------------:|-----------------------:|
-| worst video freeze    |    **1872 ms** |           **10710 ms** |
-| frames lost           |   **17 / 675** |             213 / 670  |
+| worst video freeze    |     **401 ms** |           **10710 ms** |
+| frames lost           |    **0 / 675** |             213 / 670  |
 | path-failure detection|         ~0.3 s |     n/a (session died) |
 | QUIC connections used |  1 (no reconnect) | reconnect after recovery |
 
@@ -44,7 +45,7 @@ fork).
   a ROS 2 `CompressedImage` topic across the bridge, viewable live in a
   browser (MJPEG).
 - Mid-stream, the primary network interface is taken down. With multipath the
-  ball stutters for a moment (0.5–1.9 s across our runs) and keeps bouncing;
+  ball stutters for a beat (0.3–0.7 s across our runs) and keeps bouncing;
   the baseline freezes for the whole outage and drops every frame in it.
 - A QoE summary (frame loss, latency percentiles, freeze durations, per-frame
   CSV) and the path-event log (detection latency, no-reconnect proof) are
@@ -97,14 +98,15 @@ build the bridge inside a matching container instead.
   of the comparison — multipath turns standby hardware into instant failover
   without any application change.
 - Frame-loss figures depend on QoS: the demo uses best-effort sensor QoS.
-  During the multipath failover most of the stalled frames were still
-  delivered (retransmission drains the stall; a short consecutive burst —
-  17 of 675 frames in the tabled run — fell out of the best-effort queue at
-  the failover instant), while the baseline's 10 s outage dropped them all.
-- The multipath worst freeze varies run to run: we observed 0.5–1.9 s
-  across repeated runs on one machine, while detection (~0.3 s) and the
-  baseline's ~10.7 s blackout were stable. The table shows one run, not a
-  best case — run it yourself and read your own numbers.
+  During the multipath failover every frame was still delivered — the
+  surviving path retransmits the in-flight data as soon as the failure is
+  detected, so the sub-second stall never overflows the best-effort queue —
+  while the baseline's 10 s outage dropped everything sent in it.
+- The multipath worst freeze varies mildly run to run (0.3–0.7 s observed
+  across repeated runs on one machine); detection (~0.3 s) and the
+  baseline's ~10.7 s blackout were stable. The freeze is dominated by
+  failure detection: netlink-based interface monitoring plus a 250 ms
+  debounce, then immediate retransmission on the surviving path.
 - The detection figure is measured by polling the bridge log every 50 ms,
   so it is an upper bound with ~0.1 s of quantization — hence "~0.3 s".
 
