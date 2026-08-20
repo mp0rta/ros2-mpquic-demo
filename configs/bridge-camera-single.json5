@@ -1,0 +1,10 @@
+// Baseline for comparison: same link, NO multipath. The path failure kills
+// the session; recovery needs a reconnect after the interface returns.
+{
+  mode: "client",
+  connect: { endpoints: ["quic/10.10.0.2:7447"] },
+  scouting: { multicast: { enabled: false } },
+  transport: {
+    link: { tls: { root_ca_certificate: "certs/ca.pem" } },
+  },
+}
