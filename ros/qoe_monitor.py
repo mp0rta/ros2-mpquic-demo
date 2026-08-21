@@ -53,10 +53,11 @@ class QoeMonitor(Node):
 
     def on_frame(self, msg):
         now = time.time()
+        mono = time.monotonic()  # gaps must survive wall-clock steps (NTP)
         frame = int(msg.header.frame_id)
         sent = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         latency_ms = (now - sent) * 1000.0
-        gap_ms = (now - self.last_arrival) * 1000.0 if self.last_arrival else 0.0
+        gap_ms = (mono - self.last_arrival) * 1000.0 if self.last_arrival else 0.0
         with self.lock:
             self.latest_jpeg = bytes(msg.data)
             if self.first_frame is None:
@@ -75,7 +76,7 @@ class QoeMonitor(Node):
         if self.csv:
             self.csv.write(f"{frame},{now:.3f},{latency_ms:.1f},{gap_ms:.1f}\n")
             self.csv.flush()
-        self.last_arrival = now
+        self.last_arrival = mono
 
     def summary(self):
         with self.lock:

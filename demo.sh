@@ -18,8 +18,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-MODE=multipath
-[ "${1:-}" = "--single" ] && MODE=single
+case "${1:-}" in
+  "") MODE=multipath ;;
+  --single) MODE=single ;;
+  *) echo "usage: $0 [--single]" >&2; exit 2 ;;
+esac
 
 # Two supported layouts: the fork checkouts as submodules inside this repo
 # (preferred; git clone --recursive) or as siblings of this repo.
@@ -114,6 +117,9 @@ if [ "$MODE" = multipath ]; then
     sleep 0.05
   done
 fi
+# persist the injection instant and detection latency so they can be
+# recomputed against qoe.csv (same clock)
+echo "t_fail_epoch_ms=$T_FAIL detect_ms=${DETECT_MS:-n/a}" > $LOG/detection.txt
 sleep 10
 ip -n zc link set c0 up
 sleep 8   # single mode: give the reconnect a chance after recovery
@@ -138,9 +144,32 @@ if [ "$MODE" = multipath ]; then
   # the 10s outage window a single-path session would suffer
   WORST=$(grep -oE "worst freeze *: *[0-9]+" $LOG/qoe.log | grep -oE "[0-9]+$" || echo 999999)
   [ "$WORST" -lt 5000 ] || { echo "FAIL: stream stalled for ${WORST}ms (no failover?)"; exit 1; }
+  # freeze accounting only advances when frames ARRIVE, so a fully dead
+  # stream leaves it frozen at the last pre-failure value: additionally
+  # require frames to have flowed through the outage and after recovery
+  LIVE=$(python3 - $LOG/qoe.csv $T_FAIL <<PY
+import csv, sys
+rows = [float(r["arrival_unix"]) for r in csv.DictReader(open(sys.argv[1]))]
+t0 = int(sys.argv[2]) / 1000.0
+print(sum(1 for t in rows if t0 <= t < t0 + 10), sum(1 for t in rows if t >= t0 + 10))
+PY
+)
+  DURING=${LIVE% *}; AFTER=${LIVE#* }
+  echo " frames during outage   : $DURING (of ~200 sent in the 10s window)"
+  [ "$DURING" -ge 100 ] || { echo "FAIL: stream did not keep flowing during the outage"; exit 1; }
+  [ "$AFTER" -ge 20 ] || { echo "FAIL: stream died after recovery"; exit 1; }
 else
+  # the baseline must still prove the session RECOVERED after the outage,
+  # otherwise its QoE summary describes a dead stream, not a blackout
+  AFTER=$(python3 - $LOG/qoe.csv $T_FAIL <<PY
+import csv, sys
+rows = [float(r["arrival_unix"]) for r in csv.DictReader(open(sys.argv[1]))]
+print(sum(1 for t in rows if t >= int(sys.argv[2]) / 1000.0 + 10))
+PY
+)
+  [ "$AFTER" -ge 20 ] || { echo "FAIL: baseline never resumed after recovery"; exit 1; }
   echo " (baseline: compare this QoE summary with the multipath run)"
 fi
 '
 echo ""
-echo "logs in ./logs/$MODE/ (bridge-camera, bridge-monitor, camera, qoe + qoe.csv)"
+echo "logs in ./logs/$MODE/ (bridge-camera, bridge-monitor, camera, qoe + qoe.csv, detection.txt)"
