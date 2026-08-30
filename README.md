@@ -114,6 +114,8 @@ build the bridge inside a matching container instead.
 
 [Apache-2.0](LICENSE)
 
+Copyright (c) 2026 mp0rta
+
 ## Repository layout
 
 - `ros/camera_sim.py` — synthetic camera (frame id in `header.frame_id`,
