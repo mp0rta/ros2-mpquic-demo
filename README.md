@@ -39,6 +39,13 @@ monitoring (netlink) for ~300 ms failure detection. ROS 2 and
 `zenoh-bridge-ros2dds` are unmodified (the bridge is only rebuilt against the
 fork).
 
+Zenoh can already use multiple network interfaces through multiple independent
+links. This project explores a different design point: whether a single Zenoh
+QUIC link can benefit from Multipath QUIC, keeping one QUIC connection alive
+across a network-interface failure. It is an experimental integration and
+reproducible lab demonstrator, not a claim that MPQUIC is universally better
+than Zenoh's native multi-link transport.
+
 ## What you see
 
 - A synthetic camera (wall clock + frame counter + bouncing ball) streamed as
@@ -97,6 +104,17 @@ build the bridge inside a matching container instead.
 - The baseline is genuinely handicapped by having one NIC; that is the point
   of the comparison — multipath turns standby hardware into instant failover
   without any application change.
+- This demo compares MPQUIC with a single-path QUIC baseline. It does not yet
+  establish that MPQUIC outperforms Zenoh's native multi-link transport; a fair
+  head-to-head comparison under the same topology, traffic and failure
+  conditions is future work. MPQUIC may offer advantages in connection-state
+  continuity and retransmission of in-flight QUIC data over a surviving path,
+  while native multi-link already supports failover of newly scheduled messages
+  and priority/reliability-aware link selection.
+- The ~300 ms failure detection shown here is not an inherent property of
+  MPQUIC: it comes from this integration's Linux netlink monitor and 250 ms
+  debounce. Likewise, immediate retransmission of a failed path's in-flight
+  data includes changes made in the bundled noq fork.
 - Frame-loss figures depend on QoS: the demo uses best-effort sensor QoS.
   During the multipath failover every frame was still delivered — the
   surviving path retransmits the in-flight data as soon as the failure is
